@@ -4,7 +4,7 @@
 (import re [sub])
 (import asyncio)
 
-(setv commands #{".gpt" ".run" ".clear"})
+(setv commands #{".gpt" ".code" ".clear"})
 
 (setv creds
   (with [f (open "creds.json" "r")]
@@ -34,12 +34,18 @@
         choice (get completion.choices 0)]
     choice.message.content))
 
-(defn/a run-code [prompt]
-  "Write code and prepend './run' to run the code on discord. For now, it's broken"
-  (let [silencer "Write code that does what the next line says. Do not say any words, do not explain, and do not send anything except the code in markdown format."
-        ;; TODO: Use a separate function instead of get-response for generating code
-        md-code (await (get-response f"{silencer}\n{prompt}"))]
-    f"./run\n{md-code}"))
+(defn/a write-code [prompt]
+  "Write code in markdown format"
+  (let [system-message "You write code in markdown format based on what the user wants"
+        messages [{"role" "user"    "content" prompt}
+                  {"role" "system"  "content" system-message}]
+        unawaited-completion (openai.ChatCompletion.acreate
+                               :model "gpt-3.5-turbo"
+                               :messages messages)
+        code-completion (await unawaited-completion)
+        choice (get code-completion.choices 0)]
+    choice.message.content))
+       
 
 (defn/a [client.event] on-message [message]
   "On message event"
@@ -59,7 +65,8 @@
                      command
                      ".gpt" (with/a [_ (message.channel.typing)]
                               (await (get-response argument user-history)))
-                     ".run" (await (run-code argument))
+                     ".code" (with/a [_ (message.channel.typing)]
+                               (await (write-code argument)))
                      ".clear" (do
                                 (del (get conversations username))
                                 "Cleared the history 😇"))]
