@@ -27,10 +27,11 @@
   (global conversations)
   (let [messages (+ message-history
                     [{"role" "user"  "content" message}
-                     {"role" "system"  "content" "Act like you're a helpful AI chatbot"}])
-        completion (await (openai.ChatCompletion.acreate
-                            :model "gpt-3.5-turbo"
-                            :messages messages))
+                     {"role" "system"  "content" "You're a smart and helpful AI chatbot"}])
+        unawaited-completion (openai.ChatCompletion.acreate
+                               :model "gpt-3.5-turbo"
+                               :messages messages)
+        completion (await unawaited-completion)
         choice (get completion.choices 0)]
     choice.message.content))
 
@@ -69,14 +70,15 @@
                                (await (write-code argument)))
                      ".clear" (do
                                 (del (get conversations username))
-                                "Cleared the history 😇"))]
+                                "Cleared the history 😇"))
+          reply (message.reply response)]
       ;; Respond
-      (await (message.reply response))
+      (await reply)
       ;; Update history
-      (when (not (.get conversations username))
-        (setv (get conversations username) (list)))
-      (+= (get conversations username) [{"role" "user"      "content" argument}
-                                        {"role" "assistant" "content" response}]))))
+      (when (in username conversations)
+        (+= (get conversations username)
+            [{"role" "user"      "content" argument}
+             {"role" "assistant" "content" response}])))))
 
 (when (= __name__ "__main__")
   (client.run discord-token))
