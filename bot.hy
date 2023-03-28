@@ -22,7 +22,8 @@
   "Create GPT response based on the message"
   (let [completion (await (openai.ChatCompletion.acreate
                             :model "gpt-3.5-turbo"
-                            :messages [{"role" "user"  "content" message}]))
+                            :messages [{"role" "user"  "content" message}
+                                       {"role" "system"  "content" "Act like you're a helpful AI chatbot"}]))
         choice (get completion.choices 0)]
     choice.message.content))
 
