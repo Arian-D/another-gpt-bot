@@ -4,7 +4,7 @@
 (import re [sub])
 (import asyncio)
 
-(setv commands #{".gpt" ".run"})
+(setv commands #{".gpt" ".run" ".clear"})
 
 (setv creds
   (with [f (open "creds.json" "r")]
@@ -43,7 +43,7 @@
 
 (defn/a [client.event] on-message [message]
   "On message event"
-  ;; For debugging
+  ;; TODO: Change this to a logger
   (print message)
   ;; TODO: Add functionality to keep message history via replies instead of commands
   (when (and (.startswith message.content ".")
@@ -52,22 +52,23 @@
           command (get split 0)
           argument (.join " " (cut split 1 None))
           username (str message.author)
-          user-history (if (.get conversations username)
-                           (.get conversations username)
+          user-history (if (in username conversations)
+                           (get conversations username)
                            (list))
-          ;; TODO: Add typing indicator
-          response (await (match
-                            command
-                            ".gpt" (get-response argument user-history)
-                            ".run" (run-code argument)))]
-      ;; TODO: Empty user history 
+          response (match
+                     command
+                     ".gpt" (with/a [_ (message.channel.typing)]
+                              (await (get-response argument user-history)))
+                     ".run" (await (run-code argument))
+                     ".clear" (do
+                                (del (get conversations username))
+                                "Cleared the history 😇"))]
       ;; Respond
       (await (message.reply response))
       ;; Update history
-      ;; (global conversations)
       (when (not (.get conversations username))
         (setv (get conversations username) (list)))
-      (+= (get conversations username) [{"role" "user"  "content" argument}
+      (+= (get conversations username) [{"role" "user"      "content" argument}
                                         {"role" "assistant" "content" response}]))))
 
 (when (= __name__ "__main__")
