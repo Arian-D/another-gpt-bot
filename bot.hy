@@ -1,13 +1,13 @@
 (import discord)
 (import json [loads])
 (import openai)
+(import re [sub])
+
+(setv commands #{".gpt" ".run"})
 
 (setv creds
   (with [f (open "creds.json" "r")]
     (loads (.read f))))
-
-;; Ideally this would be a slash command but for now it's aight
-(setv prefix ".gpt ")
 
 ;; OpenAI
 (setv openai.api-key (get creds "openai"))
@@ -26,13 +26,24 @@
         choice (get completion.choices 0)]
     choice.message.content))
 
+(defn/a run-code [prompt]
+  "Write code and prepend './run' to run the code on discord. For now, it's broken"
+  (let [silencer "Write code that does what the next line says. Do not say any words, do not explain, and do not send anything except the code in markdown format."
+        md-code (await (get-response f"{silencer}\n{prompt}"))]
+    f"./run\n{md-code}"))
+
 (defn/a [client.event] on-message [message]
   "On message event"
-  (when (message.content.startswith prefix)
-    (let [request (cut message.content (len prefix) None)
-          response (await (get-response request))]
+  (when (and (in (get (.split message.content) 0) commands)
+             (!= message.author client.user))
+    (let [split (.split message.content)
+          command (get split 0)
+          argument (.join " " (cut split 1 None))
+          response (await (match
+                            command
+                            ".gpt" (get-response argument)
+                            ".run" (run-code argument)))]
       (await (message.reply response)))))
-
 
 (when (= __name__ "__main__")
   (client.run discord-token))

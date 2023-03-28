@@ -3,7 +3,7 @@ Yet another GPT discord bot
 
 You've seen enough of these ChatGPT frontends; close this tab.
 
-# Usage#
+# Usage #
 Until I write a Dockerfile,
 ``` shell
 # With credentials in creds.json
