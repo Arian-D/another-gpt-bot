@@ -24,10 +24,8 @@
 
 (defn/a get-response [message [message-history (list)]]
   "Create GPT response based on the message and the user history"
-  (global conversations)
   (let [messages (+ message-history
-                    [{"role" "user"  "content" message}
-                     {"role" "system"  "content" "You're a smart and helpful AI chatbot"}])
+                    [{"role" "user"  "content" message}])
         unawaited-completion (openai.ChatCompletion.acreate
                                :model "gpt-3.5-turbo"
                                :messages messages)
@@ -50,6 +48,7 @@
 
 (defn/a [client.event] on-message [message]
   "On message event"
+  (global conversations)
   ;; TODO: Change this to a logger
   (print message)
   ;; TODO: Add functionality to keep message history via replies instead of commands
@@ -75,10 +74,11 @@
       ;; Respond
       (await reply)
       ;; Update history
-      (when (in username conversations)
+      (if (in username conversations)
         (+= (get conversations username)
             [{"role" "user"      "content" argument}
-             {"role" "assistant" "content" response}])))))
+             {"role" "assistant" "content" response}])
+        (|= conversations {username (list)})))))
 
 (when (= __name__ "__main__")
   (client.run discord-token))
