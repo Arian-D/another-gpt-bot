@@ -14,6 +14,10 @@ Set up API tokens in a file called `creds.json` like this:
 }
 ```
 
+and follow the instruction
+[here](https://github.com/acheong08/EdgeGPT#getting-authentication-required)
+to export `cookies.json` if you also want Bing AI
+
 ## Docker/Podman ##
 Build and run like this:
 ``` shell

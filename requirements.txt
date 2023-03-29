@@ -1,3 +1,4 @@
 hy
 discord.py
 openai
+EdgeGPT

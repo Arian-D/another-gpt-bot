@@ -3,12 +3,22 @@
 (import openai)
 (import re [sub])
 (import asyncio)
+(import os.path [exists :as file-exists?])
+(import EdgeGPT [Chatbot :as BingChat])
+(import ImageGen [ImageGen])
+(import pprint [pprint])
 
-(setv commands #{".gpt" ".code" ".clear"})
+(setv commands #{".gpt" ".bingpt" ".dalle" ".code" ".clear"})
 
 (setv creds
   (with [f (open "creds.json" "r")]
     (loads (.read f))))
+
+(setv edgegpt-cookies
+      (if (file-exists? "cookies.json")
+          (with [f (open "cookies.json" "r")]
+            (loads (.read f)))
+          None))
 
 ;; OpenAI
 (setv openai.api-key (get creds "openai"))
@@ -22,7 +32,7 @@
 ;; A dict to hold conversation history. [User -> Messasge list]
 (setv conversations (dict))
 
-(defn/a get-response [message [message-history (list)]]
+(defn/a gpt-response [message [message-history (list)]]
   "Create GPT response based on the message and the user history"
   (let [messages (+ message-history
                     [{"role" "user"  "content" message}])
@@ -44,7 +54,32 @@
         code-completion (await unawaited-completion)
         choice (get code-completion.choices 0)]
     choice.message.content))
-       
+ 
+(defn/a bingai-response [message]
+  (when (is edgegpt-cookies None)
+    "Sorry, but I can't do that 😢")
+  ;; TODO: Move the bot outside instead of closing on every function call
+  ;; TODO: Add citations
+  (let [bot (BingChat :cookies edgegpt-cookies)
+        response (await (bot.ask :prompt message))
+        message-history (get (get response "item") "messages")
+        bot-response (get message-history 1)
+        text (get bot-response "text")]
+    (await (bot.close))
+    text))
+
+(defn/a bingai-dalle [prompt]
+  (when (is edgegpt-cookies None)
+    "Sorry, but I can't do that 😢")
+  (let [cookies (filter (fn [cookie] (= (get cookie "name") "_U"))
+                          edgegpt-cookies)
+        auth-cookie (next cookies)
+        cookie-value (get auth-cookie "value")
+        image-generator (ImageGen cookie-value)
+        images (image-generator.get-images prompt)
+        links (.join "\n" images)]
+    links))
+      
 
 (defn/a [client.event] on-message [message]
   "On message event"
@@ -55,6 +90,7 @@
   (when (and (.startswith message.content ".")
              (!= message.author client.user))
     (let [split (.split message.content)
+          ;; TODO: Macros for car and cdr cuz lispy brain go brrr
           command (get split 0)
           argument (.join " " (cut split 1 None))
           username (str message.author)
@@ -63,13 +99,18 @@
                            (list))
           response (match
                      command
+                     ;; FIXME: Clean up all these async with's 
                      ".gpt" (with/a [_ (message.channel.typing)]
-                              (await (get-response argument user-history)))
+                              (await (gpt-response argument user-history)))
                      ".code" (with/a [_ (message.channel.typing)]
                                (await (write-code argument)))
                      ".clear" (do
                                 (del (get conversations username))
-                                "Cleared the history 😇"))
+                                "Cleared the history 😇")
+                     ".bingpt" (with/a [_ (message.channel.typing)]
+                                 (await (bingai-response argument)))
+                     ".dalle" (await (bingai-dalle argument))
+                     _ "Hmmm")
           reply (message.reply response)]
       ;; Respond
       (await reply)
