@@ -1,14 +1,15 @@
-(import discord)
-(import json [loads])
-(import openai)
-(import re [sub])
-(import asyncio)
-(import os.path [exists :as file-exists?])
-(import EdgeGPT [Chatbot :as BingChat])
-(import ImageGen [ImageGen])
-(import pprint [pprint])
+(import discord
+        json [loads]
+        openai
+        re [sub]
+        asyncio
+        os.path [exists :as file-exists?]
+        EdgeGPT [Chatbot :as BingChat]
+        ImageGen [ImageGen]
+        pprint [pprint])
 
 (setv commands #{".gpt" ".bingpt" ".dalle" ".code" ".clear"})
+(setv model "gpt-3.5-turbo")
 
 (setv creds
   (with [f (open "creds.json" "r")]
@@ -37,7 +38,7 @@
   (let [messages (+ message-history
                     [{"role" "user"  "content" message}])
         unawaited-completion (openai.ChatCompletion.acreate
-                               :model "gpt-3.5-turbo"
+                               :model model
                                :messages messages)
         completion (await unawaited-completion)
         choice (get completion.choices 0)]
@@ -49,7 +50,7 @@
         messages [{"role" "user"    "content" prompt}
                   {"role" "system"  "content" system-message}]
         unawaited-completion (openai.ChatCompletion.acreate
-                               :model "gpt-3.5-turbo"
+                               :model model
                                :messages messages)
         code-completion (await unawaited-completion)
         choice (get code-completion.choices 0)]
@@ -109,7 +110,9 @@
                                 "Cleared the history 😇")
                      ".bingpt" (with/a [_ (message.channel.typing)]
                                  (await (bingai-response argument)))
-                     ".dalle" (await (bingai-dalle argument))
+                     ;; TODO: Have the images be sent separately
+                     ".dalle" (with/a [_ (message.channel.typing)]
+                                (await (bingai-dalle argument)))
                      _ "Hmmm")
           reply (message.reply response)]
       ;; Respond
