@@ -56,16 +56,27 @@
 ;; A dict to hold conversation history. [User -> Messasge list]
 (setv conversations (dict))
 
-(defn/a gpt-response [message [message-history (list)]]
+
+(defn/a
+  [(client.tree.command)
+   (discord.app-commands.describe
+     :prompt "Enter the prompt")]
+  chatgpt [#^discord.Interaction interaction
+           #^str prompt]
   "Create GPT response based on the message and the user history"
-  (let [messages (+ message-history
-                    [{"role" "user"  "content" message}])
+  (await (interaction.response.defer))
+  (let [message-history (or (.get conversations (str interaction.user))
+                            (list))
+        messages (+ message-history
+                    [{"role" "user"  "content" prompt}])
         unawaited-completion (openai.ChatCompletion.acreate
                                :model model
                                :messages messages)
         completion (await unawaited-completion)
         choice (get completion.choices 0)]
-    choice.message.content))
+    (await (interaction.followup.send choice.message.content))
+    ;; TODO: Keep the message history
+    ))
 
 (defn/a write-code [prompt]
   "Write code in markdown format"
@@ -99,9 +110,9 @@
   dalle [#^discord.Interaction interaction
          #^str prompt]
   "Bing AI's DALLE for generating images"
+  ;; TODO: Use unless
   (when (not edgegpt-cookies)
     (return))
-  ;; TODO: Fix typing
   (await (interaction.response.defer))
   (let [cookies (filter (fn [cookie] (= (get cookie "name") "_U"))
                         edgegpt-cookies)
@@ -131,8 +142,8 @@
           response (match
                      command
                      ;; FIXME: Clean up all these async with's 
-                     ".gpt" (with/a [_ (message.channel.typing)]
-                              (await (gpt-response argument user-history)))
+                     ;; ".gpt" (with/a [_ (message.channel.typing)]
+                     ;;          (await (gpt-response argument user-history)))
                      ".code" (with/a [_ (message.channel.typing)]
                                (await (write-code argument)))
                      ".clear" (do
