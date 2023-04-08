@@ -46,10 +46,6 @@
 
 (setv client (MyClient :intents intents))
 
-(defn/a [(client.tree.command :name "hi" :description "Say hi" :guild None)] hi [interaction]
-  "Test command to see if it shows up"
-  (await (interaction.response.send_message f"Hi, {interaction.user.mention}")))
-
 (defn/a [client.event] on-ready []
   (print f"Logged in as {client.user}"))
 
@@ -82,31 +78,26 @@
             [{"role" "user"      "content" prompt}
              {"role" "assistant" "content" response}])
         (|= conversations {username (list)}))))
-
-(defn/a write-code [prompt]
-  "Write code in markdown format"
-  (let [system-message "You write code in markdown format based on what the user wants"
-        messages [{"role" "user"    "content" prompt}
-                  {"role" "system"  "content" system-message}]
-        unawaited-completion (openai.ChatCompletion.acreate
-                               :model model
-                               :messages messages)
-        code-completion (await unawaited-completion)
-        choice (get code-completion.choices 0)]
-    choice.message.content))
  
-(defn/a bingai-response [message]
-  (when (is edgegpt-cookies None)
-    "Sorry, but I can't do that 😢")
+(defn/a
+  [(client.tree.command)
+   (discord.app-commands.describe
+     :prompt "Enter the prompt")]
+  bingai [#^discord.Interaction interaction
+           #^str prompt]
+  "Bing AI chat"
+  (when (not edgegpt-cookies)
+    (return))
+  (await (interaction.response.defer))
   ;; TODO: Move the bot outside instead of closing on every function call
-  ;; TODO: Add citations
+  ;; TODO: Add citations through views
   (let [bot (BingChat :cookies edgegpt-cookies)
-        response (await (bot.ask :prompt message))
+        response (await (bot.ask :prompt prompt))
         message-history (get (get response "item") "messages")
         bot-response (get message-history 1)
         text (get bot-response "text")]
     (await (bot.close))
-    text))
+    (await (interaction.followup.send text))))
 
 (defn/a
   [(client.tree.command)
@@ -128,43 +119,15 @@
         links (.join "\n" images)]
     (for [image images]
       (await (interaction.followup.send image)))))
-      
 
-(defn/a [client.event] on-message [message]
-  "On message event"
+(defn/a
+  [(client.tree.command)]
+  clear [#^discord.Interaction interaction]
+  "Clear conversation history"
   (global conversations)
-  ;; TODO: Add functionality to keep message history via replies instead of commands
-  (when (and (.startswith message.content ".")
-             (!= message.author client.user))
-    (let [split (.split message.content)
-          ;; TODO: Macros for car and cdr cuz lispy brain go brrr
-          command (get split 0)
-          argument (.join " " (cut split 1 None))
-          username (str message.author)
-          user-history (if (in username conversations)
-                           (get conversations username)
-                           (list))
-          response (match
-                     command
-                     ;; FIXME: Clean up all these async with's 
-                     ;; ".gpt" (with/a [_ (message.channel.typing)]
-                     ;;          (await (gpt-response argument user-history)))
-                     ".code" (with/a [_ (message.channel.typing)]
-                               (await (write-code argument)))
-                     ".clear" (do
-                                (del (get conversations username))
-                                "Cleared the history 😇")
-                     ".bingpt" (with/a [_ (message.channel.typing)]
-                                 (await (bingai-response argument)))
-                     ;; TODO: Have the images be sent separately
-                     ;; ".dalle" (with/a [_ (message.channel.typing)]
-                     ;;            (await (bingai-dalle argument)))
-                     _ "Hmmm")
-          reply (message.reply response)]
-      ;; Respond
-      (await reply)
-      ;; Update history
-)))
+  (del (get conversations (str interaction.user)))
+  (await (interaction.response.send-message "Cleared 👍"
+                                            :ephemeral True)))
 
 (when (= __name__ "__main__")
   (client.run discord-token))
