@@ -28,7 +28,30 @@
 (setv discord-token (get creds "discord"))
 (setv intents (discord.Intents.default))
 (setv intents.message-content True)
-(setv client (discord.Client :intents intents))
+
+(defclass MyClient [discord.Client]
+  "A wrapper class for adding slash commands"
+  (defn __init__ [self * #^discord.Intents intents]
+    (.__init__ (super) :intents intents)
+    (setv self.tree (discord.app_commands.CommandTree self)))
+  (defn/a setup-hook [self]
+    "Add the guild to my main server"
+    ;; TODO: Define or use macros like unless and when-let
+    (when (not (.get creds "guild"))
+      (return))
+    (let [guild-id (get creds "guild")
+          guild (discord.Object :id guild-id)]
+        (self.tree.copy_global_to :guild guild)
+        (await (self.tree.sync :guild guild)))))
+
+(setv client (MyClient :intents intents))
+
+(defn/a [(client.tree.command :name "hi" :description "Say hi" :guild None)] hi [interaction]
+  "Test command to see if it shows up"
+  (await (interaction.response.send_message f"Hi, {interaction.user.mention}")))
+
+(defn/a [client.event] on-ready []
+  (print f"Logged in as {client.user}"))
 
 ;; A dict to hold conversation history. [User -> Messasge list]
 (setv conversations (dict))
@@ -69,24 +92,31 @@
     (await (bot.close))
     text))
 
-(defn/a bingai-dalle [prompt]
-  (when (is edgegpt-cookies None)
-    "Sorry, but I can't do that 😢")
+(defn/a
+  [(client.tree.command)
+   (discord.app-commands.describe
+     :prompt "Enter the prompt")]
+  dalle [#^discord.Interaction interaction
+         #^str prompt]
+  "Bing AI's DALLE for generating images"
+  (when (not edgegpt-cookies)
+    (return))
+  ;; TODO: Fix typing
+  (await (interaction.response.defer))
   (let [cookies (filter (fn [cookie] (= (get cookie "name") "_U"))
-                          edgegpt-cookies)
+                        edgegpt-cookies)
         auth-cookie (next cookies)
         cookie-value (get auth-cookie "value")
         image-generator (ImageGen cookie-value)
         images (image-generator.get-images prompt)
         links (.join "\n" images)]
-    links))
+    (for [image images]
+      (await (interaction.followup.send image)))))
       
 
 (defn/a [client.event] on-message [message]
   "On message event"
   (global conversations)
-  ;; TODO: Change this to a logger
-  (print message)
   ;; TODO: Add functionality to keep message history via replies instead of commands
   (when (and (.startswith message.content ".")
              (!= message.author client.user))
@@ -111,8 +141,8 @@
                      ".bingpt" (with/a [_ (message.channel.typing)]
                                  (await (bingai-response argument)))
                      ;; TODO: Have the images be sent separately
-                     ".dalle" (with/a [_ (message.channel.typing)]
-                                (await (bingai-dalle argument)))
+                     ;; ".dalle" (with/a [_ (message.channel.typing)]
+                     ;;            (await (bingai-dalle argument)))
                      _ "Hmmm")
           reply (message.reply response)]
       ;; Respond
