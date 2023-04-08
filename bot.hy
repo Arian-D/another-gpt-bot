@@ -65,18 +65,23 @@
            #^str prompt]
   "Create GPT response based on the message and the user history"
   (await (interaction.response.defer))
-  (let [message-history (or (.get conversations (str interaction.user))
-                            (list))
-        messages (+ message-history
+  (global conversations)
+  (let [username (str interaction.user)
+        message-history (.get conversations username)
+        messages (+ (or message-history (list))
                     [{"role" "user"  "content" prompt}])
         unawaited-completion (openai.ChatCompletion.acreate
                                :model model
                                :messages messages)
         completion (await unawaited-completion)
-        choice (get completion.choices 0)]
-    (await (interaction.followup.send choice.message.content))
-    ;; TODO: Keep the message history
-    ))
+        choice (get completion.choices 0)
+        response choice.message.content]
+    (await (interaction.followup.send response))
+    (if (in username conversations)
+        (+= (get conversations username)
+            [{"role" "user"      "content" prompt}
+             {"role" "assistant" "content" response}])
+        (|= conversations {username (list)}))))
 
 (defn/a write-code [prompt]
   "Write code in markdown format"
@@ -159,11 +164,7 @@
       ;; Respond
       (await reply)
       ;; Update history
-      (if (in username conversations)
-        (+= (get conversations username)
-            [{"role" "user"      "content" argument}
-             {"role" "assistant" "content" response}])
-        (|= conversations {username (list)})))))
+)))
 
 (when (= __name__ "__main__")
   (client.run discord-token))
