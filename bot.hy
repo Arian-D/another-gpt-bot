@@ -34,7 +34,7 @@
     (.__init__ (super) :intents intents)
     (setv self.tree (discord.app_commands.CommandTree self)))
   (defn/a setup-hook [self]
-    "Add the guild to my main server"
+    "Add the slash commands to my main guild"
     (unless (.get creds "guild")
       (return))
     (let [guild-id (get creds "guild")
