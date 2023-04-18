@@ -11,8 +11,8 @@
 (setv model "gpt-3.5-turbo")
 
 (setv creds
-  (with [f (open "creds.json" "r")]
-    (loads (.read f))))
+      (with [f (open "creds.json" "r")]
+        (loads (.read f))))
 
 (setv edgegpt-cookies
       (if (file-exists? "cookies.json")
@@ -22,7 +22,7 @@
 
 ;; OpenAI
 (setv openai.api-key (get creds "openai"))
- 
+
 ;; Discord.py stuff
 (setv discord-token (get creds "discord"))
 (setv intents (discord.Intents.default))
@@ -39,8 +39,8 @@
       (return))
     (let [guild-id (get creds "guild")
           guild (discord.Object :id guild-id)]
-        (self.tree.copy_global_to :guild guild)
-        (await (self.tree.sync :guild guild)))))
+      (self.tree.copy_global_to :guild guild)
+      (await (self.tree.sync :guild guild)))))
 
 (setv client (MyClient :intents intents))
 
@@ -76,13 +76,13 @@
             [{"role" "user"      "content" prompt}
              {"role" "assistant" "content" response}])
         (|= conversations {username (list)}))))
- 
+
 (defn/a
   [(client.tree.command)
    (discord.app-commands.describe
      :prompt "Enter the prompt")]
-  bingai [#^discord.Interaction interaction
-           #^str prompt]
+  bingpt [#^discord.Interaction interaction
+          #^str prompt]
   "Bing AI chat"
   (when (not edgegpt-cookies)
     (return))
