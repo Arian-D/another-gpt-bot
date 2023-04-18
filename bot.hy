@@ -1,14 +1,13 @@
 (import discord
         json [loads]
         openai
-        re [sub]
-        asyncio
         os.path [exists :as file-exists?]
         EdgeGPT [Chatbot :as BingChat]
         ImageGen [ImageGen]
         pprint [pprint])
 
-(setv commands #{".gpt" ".bingpt" ".dalle" ".code" ".clear"})
+(require hyrule [unless])
+
 (setv model "gpt-3.5-turbo")
 
 (setv creds
@@ -23,7 +22,7 @@
 
 ;; OpenAI
 (setv openai.api-key (get creds "openai"))
-
+ 
 ;; Discord.py stuff
 (setv discord-token (get creds "discord"))
 (setv intents (discord.Intents.default))
@@ -36,8 +35,7 @@
     (setv self.tree (discord.app_commands.CommandTree self)))
   (defn/a setup-hook [self]
     "Add the guild to my main server"
-    ;; TODO: Define or use macros like unless and when-let
-    (when (not (.get creds "guild"))
+    (unless (.get creds "guild")
       (return))
     (let [guild-id (get creds "guild")
           guild (discord.Object :id guild-id)]
@@ -106,8 +104,7 @@
   dalle [#^discord.Interaction interaction
          #^str prompt]
   "Bing AI's DALLE for generating images"
-  ;; TODO: Use unless
-  (when (not edgegpt-cookies)
+  (unless edgegpt-cookies
     (return))
   (await (interaction.response.defer))
   (let [cookies (filter (fn [cookie] (= (get cookie "name") "_U"))
