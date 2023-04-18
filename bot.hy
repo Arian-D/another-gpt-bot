@@ -84,7 +84,7 @@
   bingpt [#^discord.Interaction interaction
           #^str prompt]
   "Bing AI chat"
-  (when (not edgegpt-cookies)
+  (unless edgegpt-cookies
     (return))
   (await (interaction.response.defer))
   ;; TODO: Move the bot outside instead of closing on every function call
@@ -122,9 +122,14 @@
   clear [#^discord.Interaction interaction]
   "Clear conversation history"
   (global conversations)
-  (del (get conversations (str interaction.user)))
-  (await (interaction.response.send-message "Cleared 👍"
-                                            :ephemeral True)))
+  (let [username (str interaction.user)
+        has-history (in username conversations)]
+    (when has-history
+      (del (get conversations username)))
+    (await (interaction.response.send-message (if has-history
+                                                  "Cleared 👍"
+                                                  "No history found 🤷")
+                                              :ephemeral True))))
 
 (when (= __name__ "__main__")
   (client.run discord-token))
