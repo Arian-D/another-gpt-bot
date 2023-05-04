@@ -35,12 +35,18 @@
     (setv self.tree (discord.app_commands.CommandTree self)))
   (defn/a setup-hook [self]
     "Add the slash commands to my main guild"
-    (unless (.get creds "guild")
-      (return))
-    (let [guild-id (get creds "guild")
-          guild (discord.Object :id guild-id)]
-      (self.tree.copy_global_to :guild guild)
-      (await (self.tree.sync :guild guild)))))
+    (let [guild-info (.get creds "guild")
+          guild-ids (cond
+                      (= (type guild-info) int)  [guild-info]
+                      (= (type guild-info) None) []
+                      True                       guild-info)
+          guild-objects (map (fn [guild-id] (discord.Object :id guild-id)) guild-ids)
+          guild-objects (list guild-objects)]
+      (pprint guild-objects)
+      (for [guild guild-objects]
+        (pprint guild)
+        (self.tree.copy_global_to :guild guild)
+        (await (self.tree.sync :guild guild))))))
 
 (setv client (MyClient :intents intents))
 
