@@ -23,6 +23,9 @@
 ;; OpenAI
 (setv openai.api-key (get creds "openai"))
 
+;; Bing AI
+(setv #^BingChat bing-chat None)
+
 ;; Discord.py stuff
 (setv discord-token (get creds "discord"))
 (setv intents (discord.Intents.default))
@@ -56,7 +59,6 @@
 ;; A dict to hold conversation history. [User -> Messasge list]
 (setv conversations (dict))
 
-
 (defn/a
   [(client.tree.command)
    (discord.app-commands.describe
@@ -76,7 +78,9 @@
         completion (await unawaited-completion)
         choice (get completion.choices 0)
         response choice.message.content]
+    (await (interaction.followup.send f"> {prompt}"))
     (await (interaction.followup.send response))
+    (pprint conversations)
     (if (in username conversations)
         (+= (get conversations username)
             [{"role" "user"      "content" prompt}
@@ -100,7 +104,9 @@
         message-history (get (get response "item") "messages")
         bot-response (get message-history 1)
         text (get bot-response "text")]
+    (pprint response)
     (await (bot.close))
+    (await (interaction.followup.send f"> {prompt}"))
     (await (interaction.followup.send text))))
 
 (defn/a
