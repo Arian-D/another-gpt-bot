@@ -40,9 +40,9 @@
     "Add the slash commands to my main guild"
     (let [guild-info (.get creds "guild")
           guild-ids (cond
-                      (= (type guild-info) int)  [guild-info]
-                      (= (type guild-info) None) []
-                      True                       guild-info)
+                      (isinstance guild-info int)  [guild-info]
+                      (is guild-info None)         []
+                      True                         guild-info)
           guild-objects (map (fn [guild-id] (discord.Object :id guild-id)) guild-ids)
           guild-objects (list guild-objects)]
       (pprint guild-objects)
@@ -126,6 +126,7 @@
         image-generator (ImageGen cookie-value)
         images (image-generator.get-images prompt)
         links (.join "\n" images)]
+    (await (interaction.followup.send f"> {prompt}"))
     (for [image images]
       (await (interaction.followup.send image)))))
 
